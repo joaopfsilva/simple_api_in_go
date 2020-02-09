@@ -39,6 +39,9 @@ func HomePage(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleRequests() {
+	// fs := http.FileServer(http.Dir("assets/"))
+	// http.Handle("/assets/", http.StripPrefix("/assets/", fs))
+
 	http.HandleFunc("/", HomePage)
 	http.HandleFunc("/forecast/stock", GetCurrentStock)
 	log.Fatal(http.ListenAndServe(":8081", nil))
