@@ -23,6 +23,7 @@ import (
 	"strconv"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/gorilla/mux"
 )
 
 var db *sql.DB
@@ -46,24 +47,70 @@ type Supplier struct {
 	Age     string   `xml:"age,attr"`
 }
 
+// Supplier(s)2 : used for API forescast (not a good naming tho)
+// type Suppliers2 struct {
+// 	Supplier2 []Supplier2 `json:"supplier"`
+// }
+
+// type Supplier2 struct {
+// 	Name                         string `json:"name,attr"`
+// 	age_in_days                  int    `json:"age_in_days,attr"`
+// 	last_day_of_frame_production int    `json:"last_day_of_frame_production,attr"`
+// }
+
 // ========= API BEGIN
 
 // Stock structure with glasses and frames
 type Stock struct {
-	Glasses uint8 `json:"glasses"`
-	Frames  uint8 `json:"frames"`
+	Glasses int `json:"glasses"`
+	Frames  int `json:"frames"`
 }
 
-// GetCurrentStock /forecast/stock/T
-func GetCurrentStock(w http.ResponseWriter, r *http.Request) {
-	stock := Stock{Glasses: 10, Frames: 99}
-	prettyJSON, err := json.MarshalIndent(stock, "", "    ")
-	// json.NewEncoder(w).Encode(stock
-	if err != nil {
-		log.Fatal("Failed to generate json", err)
-	}
+// GetForecastSupplier GET /forecast/suppliers/{days}
+// func GetForecastSupplier(w http.ResponseWriter, r *http.Request) {
+// 	w.Header().Set("Content-Type", "application/json")
+// 	t_days, _ := strconv.Atoi(mux.Vars(r)["days"])
 
-	fmt.Fprintf(w, string(prettyJSON))
+// 	stock := Stock{
+// 		Glasses: 10,
+// 		Frames:  99}
+
+// 	rows := db.QueryRow("SELECT name, age FROM suppliers")
+// 	var (
+// 		name string
+// 		age  int8
+// 	)
+// 	for rows.Next() {
+// 		map_name := make(map[string]string)
+// 		map_age := make(map[string]int)
+// 		map_last_day := make(map[string]int)
+// 		err := rows.Scan(&name, &age)
+
+// 		map_name["name"] = name
+// 		map_name["age_in_days"] = age
+// 		map_name["last_day_of_frame_production"] = age * age
+// 		handleError(err)
+// 		fmt.Println(map_name)
+// 	}
+
+// 	err := json.NewEncoder(w).Encode(stock)
+// 	handleError(err)
+// 	fmt.Fprintf(w, string(t_days))
+// }
+
+// GetForecastStock /forecast/stock/T
+func GetForecastStock(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	t_days, _ := strconv.Atoi(mux.Vars(r)["days"])
+
+	stock := Stock{
+		Glasses: t_days,
+		Frames:  99}
+
+	// fmt.Fprintf(w, string(stock.Frames))
+	err := json.NewEncoder(w).Encode(stock)
+	handleError(err)
+	// fmt.Fprintf(w, string(t_days))
 }
 
 // HomePage default page
@@ -77,7 +124,8 @@ func HomePage(w http.ResponseWriter, r *http.Request) {
 // 	}
 // }
 
-func loadSuppliers(w http.ResponseWriter, r *http.Request) {
+// LoadSuppliers: POST suppliers/load
+func LoadSuppliers(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/xml")
 	byteValue, err := ioutil.ReadAll(r.Body)
 	handleError(err)
@@ -97,17 +145,18 @@ func loadSuppliers(w http.ResponseWriter, r *http.Request) {
 
 // HandleRequests : init http endpoints
 func HandleRequests() {
-	// fs := http.FileServer(http.Dir("assets/"))
-	// http.Handle("/assets/", http.StripPrefix("/assets/", fs))
+	router := mux.NewRouter().StrictSlash(true)
 
-	http.HandleFunc("/", HomePage)
-	http.HandleFunc("/suppliers/load", loadSuppliers)
-	http.HandleFunc("/forecast/stock", GetCurrentStock)
+	router.HandleFunc("/", HomePage)
+	router.HandleFunc("/suppliers/load", LoadSuppliers)
+	// router.HandleFunc("/forecast/suppliers/{days}", GetForecastSupplier)
+	router.HandleFunc("/forecast/stock/{days}", GetForecastStock)
+
 	fmt.Println("Listening on :8081")
 	fmt.Println("POST /suppliers/load [XML]")
-	fmt.Println("GET /forecast/stock")
-
-	log.Fatal(http.ListenAndServe(":8081", nil))
+	fmt.Println("GET /forecast/stock/{days}")
+	// fmt.Println("GET /forecast/suppliers/{days}")
+	log.Fatal(http.ListenAndServe(":8081", router))
 }
 
 // ========= API END
@@ -148,6 +197,11 @@ func getTotalSuppliers() int8 {
 	totalSuppliers := db.QueryRow("SELECT COUNT(id) as count FROM suppliers;")
 	totalSuppliers.Scan(&count)
 	return count
+}
+
+// formula: calculate number of glasses per day
+func calcGlassesPerDay(D int) float32 {
+	return 50.0 + float32(D)*0.03
 }
 
 func DBstats() {
@@ -193,6 +247,7 @@ func configDB() {
 	// just a sanity check
 	_, err = db.Query("SELECT COUNT(*) FROM suppliers;")
 	handleError(err)
+	defer db.Close()
 }
 
 // DBListSuppliers list all suppliers in database
