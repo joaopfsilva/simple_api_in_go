@@ -1,4 +1,5 @@
 <suppliers>
 	<supplier name="GlassesRUs" age="4"/>
-	<supplier name="Redstick" age="200"/>
+	<supplier name="Redstick" age="10"/>
+	<supplier name="NewValue" age="30"/>
 </suppliers>
