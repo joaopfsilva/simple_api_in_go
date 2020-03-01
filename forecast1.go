@@ -72,20 +72,19 @@ func readXML(filename string, db *sql.DB) Suppliers {
 	return suppliers
 }
 
-func checkCount(rows *sql.Rows) (count int) {
-	rows.Scan(&count)
+func getTotalSuppliers() int8 {
+	var count int8
+	totalSuppliers := db.QueryRow("SELECT COUNT(id) as count FROM suppliers;")
+	totalSuppliers.Scan(&count)
 	return count
 }
 
 func DBstats() {
-	fmt.Println("###")
-	res, _ := db.Query("SELECT COUNT(*) FROM suppliers;")
-	totalSuppliers := checkCount(res)
+	totalSuppliers := getTotalSuppliers()
 	fmt.Printf("Total Suppliers: %d\n\n", totalSuppliers)
 }
 
 func insertIntoDB(suppliers Suppliers) {
-	var errors int = 0
 	for i := 0; i < len(suppliers.Supplier); i++ {
 		age, _ := strconv.Atoi(suppliers.Supplier[i].Age)
 		name := suppliers.Supplier[i].Name
@@ -94,7 +93,7 @@ func insertIntoDB(suppliers Suppliers) {
 		handleError(err)
 	}
 
-	fmt.Printf("Successfully inserted values %d of %d\n", len(suppliers.Supplier)-errors, len(suppliers.Supplier))
+	fmt.Printf("Database successfully updated!\n\n")
 }
 
 func handleError(err error) {
@@ -127,29 +126,36 @@ func configDB() {
 
 // DBListSuppliers list all suppliers in database
 func DBListSuppliers() {
-	_, err := db.Query("SELECT name, age FROM suppliers;")
+	rows, err := db.Query("SELECT name, age FROM suppliers;")
 	handleError(err)
-
-	// for res.Next() {
-	// 	var name string
-	// 	// var age int8
-	// 	fmt.Println(res.Scan(&name))
-	// }
+	defer rows.Close()
+	var (
+		name string
+		age  int8
+	)
+	fmt.Println()
+	for rows.Next() {
+		err := rows.Scan(&name, &age)
+		handleError(err)
+		fmt.Println(name, age)
+	}
+	fmt.Println("\n\n")
 }
 
 func showMenu() {
 	fmt.Println("1- List suppliers")
 	fmt.Println("2- Age of supplier")
+	fmt.Println("3- Exit")
 	fmt.Print("Enter option: ")
 }
 
-func readUserOption() int8 {
-	var input int8
+func readUserOption() int {
+	var input int
 	fmt.Scanln(&input)
 	return input
 }
 
-func processMenuOption(option int8) {
+func processMenuOption(option int) {
 	// clear screen
 	c := exec.Command("clear")
 	c.Stdout = os.Stdout
@@ -160,8 +166,9 @@ func processMenuOption(option int8) {
 		DBListSuppliers()
 	case 2:
 		fmt.Println("two")
-	default:
-		fmt.Println("default")
+	case 3:
+		defer db.Close()
+		os.Exit(42)
 	}
 }
 
@@ -175,15 +182,14 @@ func main() {
 		xmlData := readXML(os.Args[1], db)
 
 		insertIntoDB(xmlData)
-		// DBstats()
+		DBstats()
 
-		// DBListSuppliers()
-		// showMenu()
-		// option := readUserOption()
-		// processMenuOption(option)
-
+		option := 0
+		for ok := true; ok; ok = (option != 3) {
+			showMenu()
+			option = readUserOption()
+			processMenuOption(option)
+		}
 	}
-
 	defer db.Close()
-	os.Exit(42)
 }
