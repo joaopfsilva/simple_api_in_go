@@ -78,16 +78,21 @@ func HomePage(w http.ResponseWriter, r *http.Request) {
 // }
 
 func loadSuppliers(w http.ResponseWriter, r *http.Request) {
-	var stock Stock
 	w.Header().Set("Content-Type", "application/xml")
-	// w.WriteHeader(http.StatusOK)
-	reqBody, err := ioutil.ReadAll(r.Body)
+	byteValue, err := ioutil.ReadAll(r.Body)
 	handleError(err)
 
-	xml.Unmarshal(reqBody, &stock)
-	w.WriteHeader(http.StatusResetContent)
-	xml.NewEncoder(w).Encode(stock)
+	// we initialize our Supplier array
+	var suppliers Suppliers
+	// we unmarshal our byteArray which contains our
+	// xmlFiles content into 'supplier' which we defined above
+	xml.Unmarshal(byteValue, &suppliers)
 
+	handleError(err)
+
+	w.WriteHeader(http.StatusResetContent)
+	insertIntoDB(suppliers)
+	// return suppliers
 }
 
 // HandleRequests : init http endpoints
@@ -98,6 +103,10 @@ func HandleRequests() {
 	http.HandleFunc("/", HomePage)
 	http.HandleFunc("/suppliers/load", loadSuppliers)
 	http.HandleFunc("/forecast/stock", GetCurrentStock)
+	fmt.Println("Listening on :8081")
+	fmt.Println("POST /suppliers/load [XML]")
+	fmt.Println("GET /forecast/stock")
+
 	log.Fatal(http.ListenAndServe(":8081", nil))
 }
 
@@ -105,6 +114,7 @@ func HandleRequests() {
 
 func readXML(filename string) Suppliers {
 	// Open our xmlFile
+	filename = "example.xml"
 	xmlFile, err := os.Open(filename)
 	// if we os.Open returns an error then handle it
 	handleError(err)
@@ -243,13 +253,13 @@ func processMenuOption(option int) {
 	switch option {
 	case 1:
 		subOption := 0
-		for ok := true; ok; ok = (subOption != 3) {
-			clearScreen()
-			fmt.Println("1- From file")
-			fmt.Println("2- From API")
-			subOption = readUserOption()
-			processSubMenuOption(subOption)
-		}
+		// for ok := true; ok; ok = (subOption != 3) {
+		clearScreen()
+		fmt.Println("1- From file")
+		fmt.Println("2- From API")
+		subOption = readUserOption()
+		processSubMenuOption(subOption)
+		// }
 	case 2:
 		fmt.Println("List Suppliers")
 		DBListSuppliers()
